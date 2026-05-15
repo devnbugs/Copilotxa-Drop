@@ -24,9 +24,27 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+type ThemeName = 'default' | 'dracula' | 'solarized' | 'onedark';
+
+const THEMES: Record<ThemeName, { name: string; bg: string; border: string; prompt: string; input: string; output: string; borderTop: string; }> = {
+  default: { name: 'Default Dark', bg: 'bg-[#0a0a0a]', border: 'border-border', prompt: 'text-emerald-400', input: 'text-zinc-200', output: 'text-zinc-400', borderTop: 'border-white/5' },
+  dracula: { name: 'Dracula', bg: 'bg-[#282a36]', border: 'border-[#44475a]', prompt: 'text-[#50fa7b]', input: 'text-[#f8f8f2]', output: 'text-[#6272a4]', borderTop: 'border-[#44475a]' },
+  solarized: { name: 'Solarized Dark', bg: 'bg-[#002b36]', border: 'border-[#073642]', prompt: 'text-[#859900]', input: 'text-[#839496]', output: 'text-[#586e75]', borderTop: 'border-[#073642]' },
+  onedark: { name: 'One Dark', bg: 'bg-[#282c34]', border: 'border-[#abb2bf]/20', prompt: 'text-[#98c379]', input: 'text-[#abb2bf]', output: 'text-[#5c6370]', borderTop: 'border-[#abb2bf]/20' }
+};
 
 export function AgentView({ onExecuteCommand }: { onExecuteCommand?: (cmd: string) => void }) {
+  const [consoleTheme, setConsoleTheme] = useState<ThemeName>(() => {
+    const saved = localStorage.getItem('agent_console_theme') as ThemeName;
+    return (saved && THEMES[saved]) ? saved : 'default';
+  });
   const [health, setHealth] = useState({ cpu: 12, ram: 45, disk: '3.2TB', temp: 42 });
+  
+  useEffect(() => {
+    localStorage.setItem('agent_console_theme', consoleTheme);
+  }, [consoleTheme]);
   
   useEffect(() => {
     const i = setInterval(() => {
@@ -144,26 +162,45 @@ export function AgentView({ onExecuteCommand }: { onExecuteCommand?: (cmd: strin
         <div className="space-y-4">
 
           {/* Interactive Console */}
-          <div className="bg-[#0a0a0a] border border-border rounded-lg p-3 flex flex-col gap-2 h-48 font-mono text-xs shadow-inner">
-             <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1 pr-1">
-                {consoleOutput.map((x, i) => (
-                    <div key={i} className={cn("break-words whitespace-pre-wrap leading-relaxed", x.type === 'input' ? "text-zinc-200" : "text-zinc-400")}>
-                        {x.type === 'input' ? <span className="text-emerald-400 mr-2">$</span> : null}
-                        {x.content}
-                    </div>
-                ))}
-                <div ref={consoleEndRef} />
-             </div>
-             <form onSubmit={handleConsoleSubmit} className="flex gap-2 items-center border-t border-white/5 pt-2 text-zinc-300">
-                <span className="text-emerald-400 font-bold">$</span>
-                <input 
-                  type="text" 
-                  value={consoleInput}
-                  onChange={e => setConsoleInput(e.target.value)}
-                  className="flex-1 bg-transparent outline-none placeholder:text-zinc-600 font-mono text-zinc-200"
-                  placeholder="Type a command (e.g. status) and press Enter..."
-                />
-             </form>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                <TerminalSquare className="w-3 h-3 text-emerald-400" /> Interactive Console
+              </h3>
+              <Select value={consoleTheme} onValueChange={(val: ThemeName) => setConsoleTheme(val)}>
+                <SelectTrigger className="w-[120px] h-6 text-[10px] bg-background border-border rounded">
+                  <SelectValue placeholder="Theme" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border">
+                  {Object.entries(THEMES).map(([key, theme]) => (
+                    <SelectItem key={key} value={key} className="text-[10px] focus:bg-muted cursor-pointer transition-colors">
+                      {theme.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className={cn("border rounded-lg p-3 flex flex-col gap-2 h-48 font-mono text-xs shadow-inner transition-colors duration-300", THEMES[consoleTheme].bg, THEMES[consoleTheme].border)}>
+               <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+                  {consoleOutput.map((x, i) => (
+                      <div key={i} className={cn("break-words whitespace-pre-wrap leading-relaxed", x.type === 'input' ? THEMES[consoleTheme].input : THEMES[consoleTheme].output)}>
+                          {x.type === 'input' ? <span className={cn("mr-2 font-bold", THEMES[consoleTheme].prompt)}>$</span> : null}
+                          {x.content}
+                      </div>
+                  ))}
+                  <div ref={consoleEndRef} />
+               </div>
+               <form onSubmit={handleConsoleSubmit} className={cn("flex gap-2 items-center border-t pt-2 transition-colors duration-300", THEMES[consoleTheme].borderTop)}>
+                  <span className={cn("font-bold", THEMES[consoleTheme].prompt)}>$</span>
+                  <input 
+                    type="text" 
+                    value={consoleInput}
+                    onChange={e => setConsoleInput(e.target.value)}
+                    className={cn("flex-1 bg-transparent outline-none placeholder:-translate-y-px text-[10px]", THEMES[consoleTheme].input, THEMES[consoleTheme].output.replace('text-', 'placeholder:text-'))} 
+                    placeholder="Type a command (e.g. status) and press Enter..."
+                  />
+               </form>
+            </div>
           </div>
 
           {/* CLI Shortcuts */}
