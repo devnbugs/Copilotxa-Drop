@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Terminal, Cloud, Key, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
+import { Terminal, Cloud, Key, CheckCircle2, Loader2, ArrowRight, ShieldCheck, UserCircle2 } from "lucide-react";
 import { PremiumLogo } from "@/components/ui/PremiumLogo";
 import { cn } from "@/lib/utils";
 
@@ -32,166 +32,192 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
 
   const methods = [
     {
-      id: 'gemini-cli',
-      title: 'Gemini CLI config',
-      description: 'Use the locally stored gemini CLI config. Useful for individual devs.',
-      icon: Terminal,
-      command: 'gemini login',
-      color: 'text-indigo-400',
-      bgHover: 'hover:bg-indigo-500/5',
-      borderFocus: 'border-indigo-500/50 ring-indigo-500/20'
+      id: 'oauth-google',
+      title: 'Sign in with Google',
+      description: 'Use your personal or organization workspace account.',
+      icon: UserCircle2,
+      command: 'google auth login',
+      color: 'text-indigo-500',
+      tag: 'Recommended'
     },
     {
-      id: 'gcp-adc',
-      title: 'GCP ADC',
-      description: 'Application Default Credentials via gcloud. Recommended for enterprise.',
+      id: 'gemini-key',
+      title: 'Use Gemini API Key',
+      description: 'Provide an API key from Google AI Studio.',
+      icon: Key,
+      command: 'export GEMINI_API_KEY="..."',
+      color: 'text-emerald-500',
+    },
+    {
+      id: 'vertex-ai',
+      title: 'Sign in with Vertex AI',
+      description: 'Use Application Default Credentials, Service Accounts, or API keys.',
       icon: Cloud,
       command: 'gcloud auth application-default login',
       color: 'text-blue-400',
-      bgHover: 'hover:bg-blue-500/5',
-      borderFocus: 'border-blue-500/50 ring-blue-500/20'
-    },
-    {
-      id: 'custom-key',
-      title: 'API Key',
-      description: 'Provide a static Google AI Studio or Vertex AI key manually.',
-      icon: Key,
-      command: 'export GEMINI_API_KEY="..."',
-      color: 'text-emerald-400',
-      bgHover: 'hover:bg-emerald-500/5',
-      borderFocus: 'border-emerald-500/50 ring-emerald-500/20'
     }
   ];
 
   return (
-    <div className="flex h-screen w-full bg-[#000000] text-zinc-300 items-center justify-center relative overflow-hidden font-sans">
+    <div className="flex h-screen w-full bg-background text-foreground relative overflow-hidden font-sans">
       
-      {/* Visual noise / grid background */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900/40 via-[#000000] to-[#000000] opacity-50" />
-      <div 
-        className="absolute inset-0 opacity-[0.015]" 
-        style={{ backgroundImage: 'linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(90deg, #ffffff 1px, transparent 1px)', backgroundSize: '32px 32px' }}
-      />
+      {/* Left Side: Enterprise Branding & Graphic */}
+      <div className="hidden lg:flex flex-col w-[45%] h-full bg-muted/30 border-r border-border p-12 relative overflow-hidden">
+        {/* Subtle background decoration */}
+        <div className="absolute top-[-20%] left-[-10%] w-[140%] h-[140%] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-500/10 via-background to-background opacity-50 blur-3xl pointer-events-none" />
+        <div 
+          className="absolute inset-0 opacity-[0.03]" 
+          style={{ backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px), linear-gradient(90deg, currentColor 1px, transparent 1px)', backgroundSize: '40px 40px' }}
+        />
 
-      <div className="z-10 w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-12 p-8">
-        
-        {/* Left column: Branding & Title */}
-        <div className="flex flex-col justify-center space-y-6">
-          <div className="w-16 h-16 rounded-3xl bg-[#0a0a0a] border border-white/5 flex items-center justify-center shadow-2xl">
-            <PremiumLogo className="w-8 h-8" />
-          </div>
-          <div>
-            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-4">
-              Authenticate <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
-                Gemini Workspace
-              </span>
-            </h1>
-            <p className="text-zinc-500 text-sm md:text-base leading-relaxed max-w-sm">
-              Connect your local environment to the Gemini API securely. Choose a preferred authentication method to grant access to the CLI agent.
-            </p>
+        <div className="relative z-10 flex items-center gap-3 mb-16">
+          <PremiumLogo className="w-8 h-8" />
+          <span className="font-bold text-xl tracking-tight">Gemini CLI Enterprise</span>
+        </div>
+
+        <div className="relative z-10 my-auto">
+          <h1 className="text-4xl lg:text-5xl font-bold tracking-tight mb-6 leading-tight">
+            Secure, Managed <br /> AI Tools for Enterprise
+          </h1>
+          <p className="text-muted-foreground text-lg max-w-md leading-relaxed mb-8">
+            Access centrally managed model configurations, strict sandbox policies, and role-based MCP tools.
+          </p>
+
+          <div className="flex flex-col gap-4">
+            {[
+              "Sign in with Google for individuals & orgs",
+              "Bring your own AI Studio API Key",
+              "Enterprise Vertex AI ADC Support",
+              "Seamless GCP project integration"
+            ].map((feature, i) => (
+              <div key={i} className="flex items-center gap-3 text-sm font-medium text-foreground">
+                <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                {feature}
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Right column: Auth Methods */}
-        <div className="bg-[#050505] border border-white/5 rounded-[2rem] p-8 shadow-2xl flex flex-col justify-center min-h-[500px]">
-          
-          {!isAuthenticating ? (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-4"
-            >
-              <div className="mb-6">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Select Provider</span>
-              </div>
+        <div className="relative z-10 mt-auto flex items-center justify-between text-xs text-muted-foreground">
+           <span>Version 24.1.0</span>
+           <span>Enterprise Edition</span>
+        </div>
+      </div>
 
-              {methods.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => handleAuth(m.id)}
-                  className={cn(
-                    "w-full text-left p-5 rounded-2xl border border-white/5 bg-[#0a0a0a] transition-all duration-300 group relative overflow-hidden",
-                    m.bgHover,
-                    "hover:border-white/20"
-                  )}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className={cn("p-3 rounded-xl bg-black border border-white/5 shadow-inner", m.color)}>
-                      <m.icon className="w-5 h-5" />
-                    </div>
-                    <div className="flex flex-col gap-1 flex-1">
-                      <h3 className="text-sm font-bold text-zinc-200">{m.title}</h3>
-                      <p className="text-xs text-zinc-500">{m.description}</p>
-                      
-                      <div className="mt-3 bg-black/50 p-2 rounded border border-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
-                         <span className="font-mono text-[10px] text-zinc-600 block">$ {m.command}</span>
-                      </div>
-                    </div>
-                    <ArrowRight className="w-5 h-5 text-zinc-600 opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0 mt-3" />
-                  </div>
-                </button>
-              ))}
-            </motion.div>
-          ) : (
-             <motion.div 
-               initial={{ opacity: 0, scale: 0.95 }}
-               animate={{ opacity: 1, scale: 1 }}
-               className="flex flex-col items-center justify-center h-full space-y-8 text-center"
-             >
-                <div className="relative">
-                  <div className="w-24 h-24 rounded-full border border-white/10 flex items-center justify-center bg-[#0a0a0a]">
-                     {authStep < 3 ? (
-                       <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-                     ) : (
-                       <CheckCircle2 className="w-10 h-10 text-emerald-400" />
-                     )}
-                  </div>
-                  {authStep < 3 && (
-                    <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="48"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        className="text-indigo-500/30"
-                      />
-                      <motion.circle
-                        cx="50"
-                        cy="50"
-                        r="48"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeDasharray="301.59"
-                        initial={{ strokeDashoffset: 301.59 }}
-                        animate={{ strokeDashoffset: 301.59 - (301.59 * (authStep / 3)) }}
-                        transition={{ duration: 1 }}
-                        className="text-indigo-400"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  )}
-                </div>
+      {/* Right Side: Login Form */}
+      <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
+          {/* Mobile logo only */}
+          <div className="lg:hidden flex items-center gap-3 mb-12">
+            <PremiumLogo className="w-8 h-8" />
+            <span className="font-bold text-xl tracking-tight">Gemini CLI</span>
+          </div>
 
-                <div className="space-y-2">
-                  <h3 className="text-lg font-bold text-white">
-                    {authStep === 1 && "Initializing Auth Flow"}
-                    {authStep === 2 && "Validating Credentials"}
-                    {authStep === 3 && "Authentication Successful"}
-                  </h3>
-                  <p className="text-xs text-zinc-500 font-mono">
-                    {authStep === 1 && `Executing command proxy for ${selectedMethod}...`}
-                    {authStep === 2 && "Checking token scopes and expiration..."}
-                    {authStep === 3 && "Redirecting to workspace..."}
+          <div className="w-full max-w-md">
+            {!isAuthenticating ? (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-6"
+              >
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold tracking-tight mb-2">Sign in to your account</h2>
+                  <p className="text-muted-foreground text-sm">
+                    Your administrator requires authentication to access Gemini CLI resources and MCP tools.
                   </p>
                 </div>
-             </motion.div>
-          )}
 
-        </div>
+                <div className="space-y-4">
+                  {methods.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => handleAuth(m.id)}
+                      className={cn(
+                        "w-full text-left p-4 rounded-xl border border-border bg-card transition-all duration-300 group relative overflow-hidden hover:border-foreground/30 hover:shadow-md hover:-translate-y-0.5",
+                      )}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className={cn("p-2.5 rounded-lg bg-background border border-border mt-0.5 shadow-sm", m.color)}>
+                          <m.icon className="w-5 h-5" />
+                        </div>
+                        <div className="flex flex-col gap-1 flex-1">
+                          <div className="flex items-center justify-between">
+                             <h3 className="text-sm font-bold text-foreground">{m.title}</h3>
+                             {m.tag && (
+                               <span className="text-[9px] uppercase tracking-widest font-bold bg-indigo-500/10 text-indigo-500 px-2 py-0.5 rounded-md">
+                                 {m.tag}
+                               </span>
+                             )}
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{m.description}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-8 text-center text-[11px] text-muted-foreground">
+                  By signing in, you agree to your organization's <br/>
+                  <a href="#" className="underline hover:text-foreground">Acceptable Use Policy</a> and <a href="#" className="underline hover:text-foreground">Terms of Service</a>.
+                </div>
+              </motion.div>
+            ) : (
+               <motion.div 
+                 initial={{ opacity: 0, scale: 0.95 }}
+                 animate={{ opacity: 1, scale: 1 }}
+                 className="flex flex-col items-center justify-center py-20 space-y-8 text-center"
+               >
+                  <div className="relative">
+                    <div className="w-24 h-24 rounded-full border border-border flex items-center justify-center bg-card shadow-lg">
+                       {authStep < 3 ? (
+                         <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                       ) : (
+                         <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+                       )}
+                    </div>
+                    {authStep < 3 && (
+                      <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="48"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          className="text-muted"
+                        />
+                        <motion.circle
+                          cx="50"
+                          cy="50"
+                          r="48"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeDasharray="301.59"
+                          initial={{ strokeDashoffset: 301.59 }}
+                          animate={{ strokeDashoffset: 301.59 - (301.59 * (authStep / 3)) }}
+                          transition={{ duration: 1 }}
+                          className="text-indigo-500"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-bold text-foreground">
+                      {authStep === 1 && "Initiating Secure Login"}
+                      {authStep === 2 && "Verifying Domain Policies"}
+                      {authStep === 3 && "Authentication Successful"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {authStep === 1 && `Routing via ${selectedMethod}...`}
+                      {authStep === 2 && "Enforcing system-defaults.json overrides..."}
+                      {authStep === 3 && "Redirecting to workspace..."}
+                    </p>
+                  </div>
+               </motion.div>
+            )}
+          </div>
       </div>
     </div>
   );

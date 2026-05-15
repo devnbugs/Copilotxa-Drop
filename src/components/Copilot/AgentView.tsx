@@ -14,7 +14,9 @@ import {
   ShieldCheck,
   Volume2,
   Zap,
-  RefreshCcw
+  RefreshCcw,
+  Monitor,
+  Webhook
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -41,73 +43,76 @@ export function AgentView() {
     network: true,
     firewall: true,
     daemon: false,
-    sync: true
+    mcp: true
   });
 
   const events = [
-    { time: '14:22:01', msg: 'File watcher detected 3 changes in src/components', type: 'info' },
-    { time: '14:21:45', msg: 'System RAM usage exceeded 85% threshold', type: 'warning' },
+    { time: '14:22:01', msg: 'MCP Server "win-telemetry" attached on Win11', type: 'info' },
+    { time: '14:21:45', msg: 'Agent memory budget exceeded 85% threshold', type: 'warning' },
     { time: '14:20:12', msg: 'Failed to bind port 5432: Address in use', type: 'error' },
-    { time: '14:15:00', msg: 'Automated backup completed successfully', type: 'info' }
+    { time: '14:15:00', msg: 'Model Context Protocol started successfully', type: 'info' }
   ];
 
   return (
     <div className="flex flex-col flex-1 h-full overflow-hidden bg-transparent relative">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-[#050505] shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card shrink-0">
         <div className="flex flex-col">
-          <span className="text-xs font-bold text-zinc-100 uppercase tracking-widest">System Agent</span>
-          <span className="text-[9px] text-zinc-500 font-mono">Workspace diagnostics</span>
+          <span className="text-xs font-bold text-foreground uppercase tracking-widest flex items-center gap-1.5"><Monitor className="w-3.5 h-3.5" /> Windows 11 System Agent</span>
+          <span className="text-[9px] text-muted-foreground font-mono">MCP Protocol active • v24H2</span>
         </div>
-        <Badge variant="outline" className="bg-[#111111] text-emerald-400 border-white/5 py-0 h-5 text-[9px] uppercase tracking-widest rounded">
+        <Badge variant="outline" className="bg-muted text-emerald-400 border-border py-0 h-5 text-[9px] uppercase tracking-widest rounded">
            SECURE
         </Badge>
       </div>
 
-      <ScrollArea className="flex-1 p-4">
+      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
         <div className="space-y-4">
           
-          {/* Action Center */}
-          <div className="bg-[#0a0a0a] border border-white/5 rounded-lg p-4 flex flex-col gap-4">
-            <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-              <Zap className="w-3 h-3 text-yellow-500" /> Action Center
+          {/* MCP Tools View */}
+          <div className="bg-background border border-border rounded-lg p-4 flex flex-col gap-4">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                 <Webhook className="w-3 h-3 text-purple-400" /> Model Context Protocol
+              </div>
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             </h3>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { id: 'network', label: 'Network', icon: Wifi, state: toggles.network, setter: (v:any) => setToggles(p => ({...p, network: v})) },
-                { id: 'firewall', label: 'Firewall', icon: Lock, state: toggles.firewall, setter: (v:any) => setToggles(p => ({...p, firewall: v})) },
-                { id: 'daemon', label: 'Daemon', icon: TerminalSquare, state: toggles.daemon, setter: (v:any) => setToggles(p => ({...p, daemon: v})) },
-                { id: 'sync', label: 'Cloud Sync', icon: Database, state: toggles.sync, setter: (v:any) => setToggles(p => ({...p, sync: v})) }
+                { id: 'fs', label: 'Local FS', icon: HardDrive, state: true },
+                { id: 'bash', label: 'PowerShell', icon: TerminalSquare, state: true },
+                { id: 'telemetry', label: 'Win EventLog', icon: Activity, state: true },
+                { id: 'mcp', label: 'MCP Service', icon: Webhook, state: toggles.mcp, setter: (v:any) => setToggles(p => ({...p, mcp: v})) }
               ].map((item) => (
                 <button
                   key={item.label}
-                  onClick={() => item.setter(!item.state)}
+                  onClick={() => item.setter && item.setter(!item.state)}
                   className={cn(
                     "flex flex-col items-center justify-center p-3 rounded-md border transition-all duration-200 gap-1",
                     item.state 
-                      ? "bg-[#111111] border-indigo-500/30 text-indigo-400" 
-                      : "bg-[#050505] border-white/5 text-zinc-600 hover:border-white/10 hover:bg-[#111111]"
+                      ? "bg-muted border-purple-500/30 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.1)]" 
+                      : "bg-background border-border text-foreground hover:border-foreground/10 hover:bg-muted"
                   )}
                 >
-                  <item.icon className={cn("w-4 h-4 mb-1", item.state ? "animate-pulse" : "opacity-50")} />
+                  <item.icon className={cn("w-4 h-4 mb-1", item.state ? "animate-pulse drop-shadow-sm text-purple-300" : "opacity-50")} />
                   <span className="text-[9px] font-bold uppercase tracking-tighter">{item.label}</span>
                 </button>
               ))}
             </div>
             
-            <div className="space-y-3 pt-3 border-t border-white/5">
+            <div className="space-y-3 pt-3 border-t border-border">
                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 w-full">
-                    <Sun className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                    <div className="h-1.5 w-full bg-[#111111] rounded-full overflow-hidden">
-                       <div className="h-full w-2/3 bg-zinc-300 rounded-full" />
+                    <Sun className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                       <div className="h-full w-2/3 bg-foreground rounded-full" />
                     </div>
                   </div>
                </div>
                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 w-full">
-                    <Volume2 className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                    <div className="h-1.5 w-full bg-[#111111] rounded-full overflow-hidden">
-                       <div className="h-full w-1/2 bg-zinc-300 rounded-full" />
+                    <Volume2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                       <div className="h-full w-1/2 bg-foreground rounded-full" />
                     </div>
                   </div>
                </div>
@@ -115,55 +120,55 @@ export function AgentView() {
           </div>
 
           {/* System Health */}
-          <div className="bg-[#0a0a0a] border border-white/5 rounded-lg p-4 space-y-4">
-            <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-              <Activity className="w-3 h-3 text-indigo-400" /> Diagnostics
+          <div className="bg-background border border-border rounded-lg p-4 space-y-4">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+              <Activity className="w-3 h-3 text-indigo-400" /> Host Diagnostics
             </h3>
             
             <div className="grid grid-cols-2 gap-2">
                {[
                  { label: "CPU", val: Math.round(health.cpu), icon: Cpu, color: "text-blue-400" },
                  { label: "RAM", val: Math.round(health.ram), icon: Activity, color: "text-purple-400" },
-                 { label: "DISK", val: health.disk, icon: HardDrive, color: "text-zinc-300" },
+                 { label: "DISK", val: health.disk, icon: HardDrive, color: "text-foreground" },
                  { label: "TEMP", val: Math.round(health.temp), icon: Sun, color: "text-orange-400" },
                ].map((stat) => (
-                 <div key={stat.label} className="p-2.5 bg-[#050505] border border-white/5 rounded-md flex flex-col gap-1">
+                 <div key={stat.label} className="p-2.5 bg-card border border-border rounded-md flex flex-col gap-1">
                     <stat.icon className={cn("w-3.5 h-3.5", stat.color)} />
-                    <span className="text-[8px] font-bold text-zinc-500 pt-1">{stat.label}</span>
-                    <span className="text-sm font-bold font-mono tracking-tighter text-zinc-100">{stat.val}{stat.label === 'TEMP' ? '°C' : '%'}</span>
+                    <span className="text-[8px] font-bold text-muted-foreground pt-1">{stat.label}</span>
+                    <span className="text-sm font-bold font-mono tracking-tighter text-foreground">{stat.val}{stat.label === 'TEMP' ? '°C' : '%'}</span>
                  </div>
                ))}
             </div>
 
             <div className="space-y-2 pt-2">
                <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Battery Status</span>
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Battery Status</span>
                   <div className="flex items-center gap-1.5">
                     <Battery className="w-3 h-3 text-emerald-500" />
                     <span className="text-[10px] font-bold text-emerald-400">88%</span>
                   </div>
                </div>
-               <div className="h-1.5 w-full bg-[#111111] rounded-full overflow-hidden">
+               <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                   <div className="h-full bg-emerald-500" style={{ width: '88%' }} />
                </div>
             </div>
           </div>
 
           {/* System Events */}
-          <div className="bg-[#0a0a0a] border border-white/5 rounded-lg p-4">
-            <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-              <ShieldCheck className="w-3 h-3 text-blue-400" /> Event Logs
+          <div className="bg-background border border-border rounded-lg p-4">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
+              <ShieldCheck className="w-3 h-3 text-blue-400" /> OS Event Logs
             </h3>
             <div className="space-y-1">
                {events.map((ev, i) => (
-                 <div key={i} className="flex flex-col gap-1 py-2 border-b border-white/5 last:border-0 group hover:bg-[#111111] px-2 rounded-md transition-colors -mx-2">
+                 <div key={i} className="flex flex-col gap-1 py-2 border-b border-border last:border-0 group hover:bg-muted px-2 rounded-md transition-colors -mx-2">
                     <div className="flex items-center gap-2">
-                      {ev.type === 'error' ? <AlertCircle className="w-3 h-3 text-red-500" /> : <div className="w-3 h-3 border border-white/20 rounded-full group-hover:border-white/40" />}
-                      <span className="text-[9px] font-mono text-zinc-500 shrink-0">{ev.time}</span>
+                      {ev.type === 'error' ? <AlertCircle className="w-3 h-3 text-red-500" /> : <div className="w-3 h-3 border border-border rounded-full group-hover:border-foreground/20" />}
+                      <span className="text-[9px] font-mono text-muted-foreground shrink-0">{ev.time}</span>
                     </div>
                     <span className={cn(
                       "text-[10px] font-medium leading-relaxed pl-5",
-                      ev.type === 'error' ? "text-red-300" : ev.type === 'warning' ? "text-yellow-300" : "text-zinc-300"
+                      ev.type === 'error' ? "text-red-400" : ev.type === 'warning' ? "text-yellow-400" : "text-foreground"
                     )}>{ev.msg}</span>
                  </div>
                ))}
@@ -171,7 +176,7 @@ export function AgentView() {
           </div>
 
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
