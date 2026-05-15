@@ -22,6 +22,7 @@ export function Workspace() {
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(false); // Default hide on mobile
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
   const [chatSessionId, setChatSessionId] = useState(0);
+  const [pendingCommand, setPendingCommand] = useState<string | null>(null);
 
   // Chat memory for sidebar
   const [chats, setChats] = useState([
@@ -224,13 +225,17 @@ export function Workspace() {
 
           {/* Center Main Chat Area */}
           <main className="flex-1 flex flex-col bg-background relative max-w-full min-w-0 h-full">
-            <Terminal key={chatSessionId} />
+            <Terminal 
+               key={chatSessionId} 
+               externalCommand={pendingCommand}
+               onExternalCommandExecuted={() => setPendingCommand(null)}
+            />
           </main>
 
           {/* Right Sidebar - Windows 11 Agent / Context */}
           {rightSidebarOpen && (
-            <aside className="absolute inset-y-0 right-0 z-20 w-[320px] lg:relative lg:z-auto lg:w-[380px] border-l border-border bg-card flex flex-col shrink-0 shadow-2xl transition-all duration-300">
-              <AgentView />
+            <aside className="absolute inset-y-0 right-0 z-20 w-[320px] lg:relative lg:z-auto lg:w-[380px] border-l border-border bg-card flex flex-col shrink-0 shadow-2xl transition-all duration-300 min-h-0 overflow-hidden">
+              <AgentView onExecuteCommand={setPendingCommand} />
             </aside>
           )}
 

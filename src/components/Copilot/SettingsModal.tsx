@@ -10,16 +10,39 @@ interface SettingsModalProps {
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<"general" | "services" | "subservices">("services");
+  
+  const [services, setServices] = useState([
+    { id: 1, name: 'corp-tools (Enforced)', url: 'http://localhost:5000/mcp', status: 'active', desc: 'Provides global corporate utilities and ticket access.' },
+    { id: 2, name: 'win-telemetry', url: 'stdio://win-telemetry-daemon', status: 'active', desc: 'Windows diagnostic reporting context tool.' },
+    { id: 3, name: 'local-fs (Sandbox)', url: 'docker://sandbox/fs', status: 'stopped', desc: 'Secure local filesystem access for modifications.' }
+  ]);
+  
+  const [editingService, setEditingService] = useState<{ id?: number, name: string, url: string, desc: string } | null>(null);
+
+  const handleSaveService = () => {
+    if (!editingService) return;
+    
+    if (editingService.id) {
+       setServices(services.map(s => s.id === editingService.id ? { ...s, name: editingService.name, url: editingService.url, desc: editingService.desc } : s));
+    } else {
+       setServices([...services, { id: Date.now(), name: editingService.name, url: editingService.url, desc: editingService.desc, status: 'stopped' }]);
+    }
+    setEditingService(null);
+  };
+
+  const handleDeleteService = (id: number) => {
+    setServices(services.filter(s => s.id !== id));
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[95vw] sm:w-[90vw] p-0 gap-0 overflow-hidden bg-background border-border shadow-2xl flex flex-col sm:flex-row h-[85vh] max-h-[800px] font-sans">
+      <DialogContent className="max-w-4xl w-[95vw] sm:w-[90vw] p-0 gap-0 overflow-hidden bg-background border-border shadow-2xl flex flex-col sm:flex-row h-[85vh] sm:h-[600px] font-sans">
          <DialogHeader className="sr-only">
            <DialogTitle>Settings</DialogTitle>
          </DialogHeader>
          {/* Sidebar */}
          <div className="w-full sm:w-[240px] bg-card border-b sm:border-b-0 sm:border-r border-border shrink-0 flex flex-row sm:flex-col overflow-x-auto sm:overflow-x-hidden p-4">
-            <h2 className="hidden sm:block text-xl font-bold mb-6 px-2 text-foreground tracking-tight">Settings</h2>
+            <h2 className="text-xl font-bold mb-6 px-2 text-foreground tracking-tight">Settings</h2>
             <div className="flex flex-row sm:flex-col gap-1 sm:gap-0 sm:space-y-1 w-full flex-nowrap shrink-0 overflow-x-auto custom-scrollbar pb-2 sm:pb-0">
                <button
                  onClick={() => setActiveTab('general')}
@@ -79,44 +102,124 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
             {activeTab === 'services' && (
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                 <div className="flex items-center justify-between border-b border-border pb-3 mb-5">
-                    <h3 className="text-lg font-bold text-foreground">MCP & Agent Services</h3>
-                    <button className="px-3 py-1.5 bg-foreground text-background text-xs font-bold uppercase tracking-widest rounded-md hover:bg-muted-foreground transition-colors">
-                      + Add Service
-                    </button>
-                 </div>
-                 
-                 <div className="grid gap-4">
-                    {[
-                      { name: 'corp-tools (Enforced)', url: 'http://localhost:5000/mcp', status: 'active', desc: 'Provides global corporate utilities and ticket access.' },
-                      { name: 'win-telemetry', url: 'stdio://win-telemetry-daemon', status: 'active', desc: 'Windows diagnostic reporting context tool.' },
-                      { name: 'local-fs (Sandbox)', url: 'docker://sandbox/fs', status: 'stopped', desc: 'Secure local filesystem access for modifications.' }
-                    ].map((svc, i) => (
-                      <div key={i} className="flex flex-col gap-3 p-4 rounded-xl border border-border bg-card/50">
-                         <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                               <div className={cn("w-2 h-2 rounded-full", svc.status === 'active' ? "bg-emerald-500 animate-pulse" : "bg-zinc-600")} />
-                               <div>
-                                 <h4 className="font-bold text-sm text-foreground">{svc.name}</h4>
-                                 <div className="text-[10px] text-muted-foreground font-mono mt-1">{svc.url}</div>
-                               </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                               <button className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors">
-                                 <CirclePlay className="w-4 h-4" />
-                               </button>
-                               <button className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors">
-                                 <Edit2 className="w-4 h-4" />
-                               </button>
-                               <button className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-muted rounded-md transition-colors">
-                                 <Trash2 className="w-4 h-4" />
-                               </button>
-                            </div>
-                         </div>
-                         <p className="text-xs text-muted-foreground">{svc.desc}</p>
-                      </div>
-                    ))}
-                 </div>
+                 {!editingService ? (
+                   <>
+                     <div className="flex items-center justify-between border-b border-border pb-3 mb-5">
+                        <h3 className="text-lg font-bold text-foreground">MCP & Agent Services</h3>
+                        <button 
+                          onClick={() => setEditingService({ name: '', url: '', desc: '' })}
+                          className="px-3 py-1.5 bg-foreground text-background text-xs font-bold uppercase tracking-widest rounded-md hover:bg-muted-foreground transition-colors"
+                        >
+                          + Add Service
+                        </button>
+                     </div>
+                     
+                     <div className="grid gap-4">
+                        {services.map((svc) => (
+                          <div key={svc.id} className="flex flex-col gap-3 p-4 rounded-xl border border-border bg-card/50 hover:border-foreground/20 transition-colors">
+                             <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-3">
+                                   <div className={cn("w-2 h-2 rounded-full", svc.status === 'active' ? "bg-emerald-500 animate-pulse" : "bg-zinc-600")} />
+                                   <div>
+                                     <h4 className="font-bold text-sm text-foreground">{svc.name}</h4>
+                                     <div className="text-[10px] text-muted-foreground font-mono mt-1">{svc.url}</div>
+                                   </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                   <button 
+                                     onClick={() => setServices(services.map(s => s.id === svc.id ? { ...s, status: s.status === 'active' ? 'stopped' : 'active' } : s))}
+                                     className={cn("p-1.5 rounded-md transition-colors", svc.status === 'active' ? "text-emerald-400 hover:bg-emerald-500/10" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
+                                     title={svc.status === 'active' ? 'Stop service' : 'Start service'}
+                                   >
+                                     <CirclePlay className="w-4 h-4" />
+                                   </button>
+                                   <button 
+                                     onClick={() => setEditingService({ id: svc.id, name: svc.name, url: svc.url, desc: svc.desc })}
+                                     className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                                     title="Edit service"
+                                   >
+                                     <Edit2 className="w-4 h-4" />
+                                   </button>
+                                   <button 
+                                     onClick={() => handleDeleteService(svc.id)}
+                                     className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-muted rounded-md transition-colors"
+                                     title="Delete service"
+                                   >
+                                     <Trash2 className="w-4 h-4" />
+                                   </button>
+                                </div>
+                             </div>
+                             <p className="text-xs text-muted-foreground">{svc.desc}</p>
+                          </div>
+                        ))}
+                        {services.length === 0 && (
+                          <div className="text-center py-10 text-muted-foreground text-sm">
+                            No services configured.
+                          </div>
+                        )}
+                     </div>
+                   </>
+                 ) : (
+                   <div>
+                     <div className="flex items-center justify-between border-b border-border pb-3 mb-5">
+                       <h3 className="text-lg font-bold text-foreground">
+                         {editingService.id ? 'Edit Service' : 'Add New Service'}
+                       </h3>
+                       <button 
+                         onClick={() => setEditingService(null)}
+                         className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                       >
+                         <X className="w-5 h-5" />
+                       </button>
+                     </div>
+                     <div className="space-y-4">
+                       <div>
+                         <label className="block text-xs font-medium text-muted-foreground mb-1">Service Name</label>
+                         <input 
+                           type="text" 
+                           value={editingService.name} 
+                           onChange={e => setEditingService({...editingService, name: e.target.value})}
+                           className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                           placeholder="e.g., File System MCP"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-xs font-medium text-muted-foreground mb-1">Command / URL</label>
+                         <input 
+                           type="text" 
+                           value={editingService.url} 
+                           onChange={e => setEditingService({...editingService, url: e.target.value})}
+                           className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                           placeholder="stdio://mcp-server-fs or http://localhost:8000"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-xs font-medium text-muted-foreground mb-1">Description</label>
+                         <textarea 
+                           value={editingService.desc} 
+                           onChange={e => setEditingService({...editingService, desc: e.target.value})}
+                           className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50 min-h-[80px]"
+                           placeholder="Brief description of what this service provides..."
+                         />
+                       </div>
+                       <div className="flex justify-end gap-2 pt-4">
+                         <button 
+                           onClick={() => setEditingService(null)}
+                           className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                         >
+                           Cancel
+                         </button>
+                         <button 
+                           onClick={handleSaveService}
+                           disabled={!editingService.name || !editingService.url}
+                           className="px-4 py-2 bg-foreground text-background text-sm font-medium rounded-md hover:bg-foreground/90 transition-colors disabled:opacity-50"
+                         >
+                           Save Service
+                         </button>
+                       </div>
+                     </div>
+                   </div>
+                 )}
               </div>
             )}
 

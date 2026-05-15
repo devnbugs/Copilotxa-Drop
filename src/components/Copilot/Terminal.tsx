@@ -7,7 +7,12 @@ import {
   User,
   Monitor,
   Bot,
-  Terminal as TerminalIcon
+  Terminal as TerminalIcon,
+  Copy,
+  Edit2,
+  Trash2,
+  Check,
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
@@ -29,11 +34,20 @@ interface Message {
 }
 
 const AVAILABLE_MODELS = [
+  { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro Preview", account: "devnbugs@gmail.com" },
   { id: "gemini-3.0-flash", name: "Gemini 3 Flash", account: "devnbugs@gmail.com" },
   { id: "gemini-3.0-pro", name: "Gemini 3 Pro", account: "devnbugs@gmail.com" },
 ];
 
-export function Terminal({ onSwitchToAgent }: { onSwitchToAgent?: () => void }) {
+export function Terminal({ 
+  onSwitchToAgent,
+  externalCommand,
+  onExternalCommandExecuted
+}: { 
+  onSwitchToAgent?: () => void;
+  externalCommand?: string | null;
+  onExternalCommandExecuted?: () => void;
+}) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "model",
@@ -49,9 +63,31 @@ export function Terminal({ onSwitchToAgent }: { onSwitchToAgent?: () => void }) 
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [tempInput, setTempInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("gemini-3.0-flash");
+  const [selectedModel, setSelectedModel] = useState("gemini-3.1-pro-preview");
   const [isShellMode, setIsShellMode] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, index: number, isShell: boolean } | null>(null);
+  const [editingMessage, setEditingMessage] = useState<{ index: number, isShell: boolean } | null>(null);
+  const [editText, setEditText] = useState("");
+
+  useEffect(() => {
+    if (externalCommand) {
+      if (!isShellMode) {
+        setIsShellMode(true);
+      }
+      executeShellCommand(externalCommand);
+      if (onExternalCommandExecuted) {
+        onExternalCommandExecuted();
+      }
+    }
+  }, [externalCommand]);
+
+  useEffect(() => {
+    const handleClick = () => setContextMenu(null);
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -59,30 +95,69 @@ export function Terminal({ onSwitchToAgent }: { onSwitchToAgent?: () => void }) 
     }
   }, [messages, shellMessages, isTyping, isShellMode]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleContextMenu = (e: React.MouseEvent, index: number, isShell: boolean) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    setContextMenu({ x: e.clientX, y: e.clientY, index, isShell });
+  };
 
-    if (isShellMode) {
-      const userCmd: Message = { role: "user", content: input, timestamp: new Date() };
-      setShellMessages(prev => [...prev, userCmd]);
-      
-      if (input.trim() && commandHistory[commandHistory.length - 1] !== input.trim()) {
-        setCommandHistory(prev => [...prev, input.trim()]);
+  const handleCopy = (content: string) => {
+    navigator.clipboard.writeText(content);
+    setContextMenu(null);
+  };
+
+  const handleDelete = () => {
+    if (contextMenu) {
+      if (contextMenu.isShell) {
+        setShellMessages(prev => prev.filter((_, i) => i !== contextMenu.index));
+      } else {
+        setMessages(prev => prev.filter((_, i) => i !== contextMenu.index));
       }
-      setHistoryIndex(-1);
-      setTempInput("");
-      
-      setInput("");
-      setIsTyping(true);
+      setContextMenu(null);
+    }
+  };
 
-      setTimeout(() => {
-        let output = "";
-        const cmd = input.trim().toLowerCase();
-        
-        switch (cmd) {
-          case "help":
-            output = `Available Commands:
+  const handleEdit = () => {
+    if (contextMenu) {
+      setEditingMessage({ index: contextMenu.index, isShell: contextMenu.isShell });
+      const msg = contextMenu.isShell ? shellMessages[contextMenu.index] : messages[contextMenu.index];
+      setEditText(msg.content);
+      setContextMenu(null);
+    }
+  };
+
+  const saveEdit = () => {
+    if (editingMessage) {
+      if (editingMessage.isShell) {
+        setShellMessages(prev => prev.map((msg, i) => i === editingMessage.index ? { ...msg, content: editText } : msg));
+      } else {
+        setMessages(prev => prev.map((msg, i) => i === editingMessage.index ? { ...msg, content: editText } : msg));
+      }
+      setEditingMessage(null);
+    }
+  };
+
+  const executeShellCommand = (cmdStr: string) => {
+    if (!cmdStr.trim()) return;
+
+    const userCmd: Message = { role: "user", content: cmdStr, timestamp: new Date() };
+    setShellMessages(prev => [...prev, userCmd]);
+    
+    if (cmdStr.trim() && commandHistory[commandHistory.length - 1] !== cmdStr.trim()) {
+      setCommandHistory(prev => [...prev, cmdStr.trim()]);
+    }
+    setHistoryIndex(-1);
+    setTempInput("");
+    
+    setIsTyping(true);
+
+    setTimeout(() => {
+      let output = "";
+      const cmd = cmdStr.trim().toLowerCase();
+      
+      switch (cmd) {
+        case "help":
+        case "gemini --help":
+          output = `Available Commands:
   gemini       Access the Gemini CLI interface
   mcp          Manage Model Context Protocol servers
   login        Re-authenticate via web browser or ADC
@@ -90,49 +165,90 @@ export function Terminal({ onSwitchToAgent }: { onSwitchToAgent?: () => void }) 
   sandbox      Start or stop local filesystem Docker sandbox
   clear        Clear the terminal output
   help         Show this message`;
-            break;
-          case "gemini":
-            output = `Gemini CLI Interactive Mode
+          break;
+        case "login":
+        case "gemini auth login":
+          output = `Found cached Gemini CLI token...
+Successfully authenticated using cached token.
+Logged in as devnbugs@gmail.com`;
+          break;
+        case "gemini":
+          output = `Gemini CLI Interactive Mode
 Type your prompt or enter 'ctrl+d' to exit.
 Use 'gemini --help' for flag options like --model, --project.`;
+          break;
+        case "clear":
+          setShellMessages([{ role: "system", content: "Terminal cleared.", timestamp: new Date()}]);
+          setIsTyping(false);
+          return;
+        default:
+          if (cmd.startsWith("echo ")) {
+            output = cmdStr.trim().substring(5).replace(/^['"]|['"]$/g, '');
             break;
-          case "clear":
-            setShellMessages([{ role: "system", content: "Terminal cleared.", timestamp: new Date()}]);
-            setIsTyping(false);
-            return;
-          default:
-            output = `command not found: ${input.split(' ')[0]}
+          }
+          output = `command not found: ${cmdStr.split(' ')[0]}
 Type 'help' for a list of valid commands.`;
-        }
+      }
 
-        setShellMessages(prev => [...prev, {
-          role: "model",
-          content: output,
-          timestamp: new Date()
-        }]);
-        setIsTyping(false);
-      }, 600);
-      return;
-    }
+      setShellMessages(prev => [...prev, {
+        role: "model",
+        content: output,
+        timestamp: new Date()
+      }]);
+      setIsTyping(false);
+    }, 600);
+  };
+
+  const executeChatCommand = async (cmdStr: string) => {
+    if (!cmdStr.trim()) return;
 
     const userMessage: Message = {
       role: "user",
-      content: input,
+      content: cmdStr,
       timestamp: new Date()
     };
     
     setMessages(prev => [...prev, userMessage]);
-    setInput("");
     setIsTyping(true);
 
-    setTimeout(() => {
+    let fullText = "";
+    
+    try {
+      const { streamChat } = await import('../../services/gemini');
+      const chatTarget = [...messages, userMessage].filter(m => m.role !== 'system') as import('../../services/gemini').Message[];
+      const responseStream = streamChat(chatTarget, selectedModel);
+      
       setMessages(prev => [...prev, {
         role: "model",
-        content: "I'm analyzing your request against the current context... \n\n*This is a frontend preview of the Gemini CLI interface!*",
+        content: "",
         timestamp: new Date()
       }]);
+
+      for await (const chunk of responseStream) {
+        fullText += chunk;
+        setMessages(prev => prev.map((msg, i) => i === prev.length - 1 ? { ...msg, content: fullText } : msg));
+      }
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        role: "model",
+        content: `Error: ${error instanceof Error ? error.message : String(error)}\n\nPlease ensure your Gemini API Key is configured.`,
+        timestamp: new Date()
+      }]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    if (isShellMode) {
+      executeShellCommand(input);
+    } else {
+      executeChatCommand(input);
+    }
+    setInput("");
   };
 
   return (
@@ -181,17 +297,38 @@ Type 'help' for a list of valid commands.`;
         {isShellMode ? (
           <div className="max-w-4xl mx-auto min-h-full font-mono text-sm leading-relaxed p-4 selection:bg-indigo-500/30">
             {shellMessages.map((msg, i) => (
-              <div key={i} className="mb-4">
-                {msg.role === 'system' && (
-                  <div className="text-zinc-500 whitespace-pre-wrap mb-4">{msg.content}</div>
-                )}
-                {msg.role === 'user' && (
-                  <div className="text-emerald-400">
-                    <span className="text-zinc-500 mr-2">$</span>{msg.content}
+              <div 
+                key={i} 
+                className="mb-4 group/msg relative rounded-md px-2 py-1 -mx-2 hover:bg-white/5 transition-colors"
+                onContextMenu={(e) => handleContextMenu(e, i, true)}
+              >
+                {editingMessage?.index === i && editingMessage?.isShell ? (
+                  <div className="flex flex-col gap-2 mt-2">
+                    <textarea 
+                      value={editText}
+                      onChange={e => setEditText(e.target.value)}
+                      className="bg-[#111] text-zinc-200 p-3 rounded-md w-full font-mono text-sm border border-zinc-700 outline-none resize-none"
+                      rows={Math.max(2, editText.split('\n').length)}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => setEditingMessage(null)} className="h-7 text-xs text-zinc-400 hover:text-zinc-200">Cancel</Button>
+                      <Button size="sm" onClick={saveEdit} className="h-7 text-xs bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30">Save</Button>
+                    </div>
                   </div>
-                )}
-                {msg.role === 'model' && (
-                  <div className="text-zinc-300 mt-2 whitespace-pre-wrap">{msg.content}</div>
+                ) : (
+                  <>
+                    {msg.role === 'system' && (
+                      <div className="text-zinc-500 whitespace-pre-wrap mb-2">{msg.content}</div>
+                    )}
+                    {msg.role === 'user' && (
+                      <div className="text-emerald-400">
+                        <span className="text-zinc-500 mr-2">$</span>{msg.content}
+                      </div>
+                    )}
+                    {msg.role === 'model' && (
+                      <div className="text-zinc-300 mt-2 whitespace-pre-wrap">{msg.content}</div>
+                    )}
+                  </>
                 )}
               </div>
             ))}
@@ -208,9 +345,10 @@ Type 'help' for a list of valid commands.`;
               <div
                 key={i}
                 className={cn(
-                  "flex gap-4 w-full group",
+                  "flex gap-4 w-full group relative",
                   msg.role === "user" ? "flex-row-reverse" : "flex-row"
                 )}
+                onContextMenu={(e) => handleContextMenu(e, i, false)}
               >
                 <div className={cn(
                   "w-8 h-8 rounded-full shrink-0 flex items-center justify-center border shadow-sm",
@@ -223,27 +361,45 @@ Type 'help' for a list of valid commands.`;
                 
                 <div className={cn(
                   "relative max-w-[85%] space-y-2",
-                  msg.role === "user" ? "items-end text-right" : "items-start"
+                  msg.role === "user" ? "items-end text-right" : "items-start",
+                  editingMessage?.index === i && !editingMessage?.isShell ? "w-full" : ""
                 )}>
                   <div className={cn(
                     "px-4 py-3 rounded-2xl text-[14px] leading-relaxed",
                     msg.role === "user" 
                       ? "bg-muted text-foreground rounded-tr-sm" 
-                      : "bg-transparent text-foreground rounded-tl-sm shadow-none py-1 px-1"
+                      : "bg-transparent text-foreground rounded-tl-sm shadow-none py-1 px-1",
+                    editingMessage?.index === i && !editingMessage?.isShell ? "w-full bg-card border shadow-sm" : ""
                   )}>
-                    <div className={cn("prose prose-sm max-w-none break-words whitespace-pre-wrap dark:prose-invert prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border", msg.role === "user" ? "text-foreground" : "")}>
-                      <Markdown>{msg.content}</Markdown>
-                    </div>
+                    {editingMessage?.index === i && !editingMessage?.isShell ? (
+                      <div className="flex flex-col gap-2 w-full text-left">
+                        <textarea 
+                          value={editText}
+                          onChange={e => setEditText(e.target.value)}
+                          className="bg-transparent text-foreground p-2 rounded-md w-full font-sans text-sm outline-none resize-none min-h-[80px]"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="ghost" onClick={() => setEditingMessage(null)} className="h-8 text-xs">Cancel</Button>
+                          <Button size="sm" onClick={saveEdit} className="h-8 text-xs">Save</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={cn("prose prose-sm max-w-none break-words whitespace-pre-wrap dark:prose-invert prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border", msg.role === "user" ? "text-foreground" : "")}>
+                        <Markdown>{msg.content}</Markdown>
+                      </div>
+                    )}
                   </div>
                   {/* Timestamp hidden by default, shown on hover like normal AI chats */}
-                  <div className={cn(
-                    "flex items-center gap-2 px-2 opacity-0 group-hover:opacity-100 transition-opacity",
-                    msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                  )}>
-                     <span className="text-[10px] text-muted-foreground font-medium font-sans">
-                       {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                     </span>
-                  </div>
+                  {!(editingMessage?.index === i && !editingMessage?.isShell) && (
+                    <div className={cn(
+                      "flex items-center gap-2 px-2 opacity-0 group-hover:opacity-100 transition-opacity",
+                      msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                    )}>
+                       <span className="text-[10px] text-muted-foreground font-medium font-sans">
+                         {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                       </span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -341,6 +497,41 @@ Type 'help' for a list of valid commands.`;
             )}
           </div>
       </div>
+      
+      {/* Context Menu */}
+      {contextMenu && (
+        <div 
+          className="fixed z-50 bg-popover/90 backdrop-blur-md text-popover-foreground rounded-lg border shadow-xl p-1 min-w-[160px] flex flex-col animate-in fade-in zoom-in-95 duration-100"
+          style={{ 
+             top: Math.min(contextMenu.y, window.innerHeight - 150),
+             left: Math.min(contextMenu.x, window.innerWidth - 180)
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button 
+             className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted rounded-md transition-colors w-full text-left"
+             onClick={() => {
+                const msg = contextMenu.isShell ? shellMessages[contextMenu.index] : messages[contextMenu.index];
+                handleCopy(msg.content);
+             }}
+          >
+            <Copy className="w-4 h-4" /> Copy
+          </button>
+          <button 
+             className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted rounded-md transition-colors w-full text-left"
+             onClick={handleEdit}
+          >
+            <Edit2 className="w-4 h-4" /> Edit
+          </button>
+          <div className="h-[1px] bg-border my-1" />
+          <button 
+             className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-500/20 text-red-500 hover:text-red-600 rounded-md transition-colors w-full text-left"
+             onClick={handleDelete}
+          >
+            <Trash2 className="w-4 h-4" /> Delete
+          </button>
+        </div>
+      )}
     </div>
   );
 }
