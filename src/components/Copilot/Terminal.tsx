@@ -12,7 +12,8 @@ import {
   Edit2,
   Trash2,
   Check,
-  X
+  X,
+  RefreshCcw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
@@ -31,6 +32,7 @@ interface Message {
   role: "user" | "model" | "system";
   content: string;
   timestamp: Date;
+  isAgent?: boolean;
 }
 
 const AVAILABLE_MODELS = [
@@ -42,11 +44,13 @@ const AVAILABLE_MODELS = [
 export function Terminal({ 
   onSwitchToAgent,
   externalCommand,
-  onExternalCommandExecuted
+  onExternalCommandExecuted,
+  isPlanMode = false
 }: { 
   onSwitchToAgent?: () => void;
   externalCommand?: string | null;
   onExternalCommandExecuted?: () => void;
+  isPlanMode?: boolean;
 }) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -56,7 +60,7 @@ export function Terminal({
     }
   ]);
   const [shellMessages, setShellMessages] = useState<Message[]>([
-    { role: "system", content: "Gemini CLI v24.1.0 (Enterprise Edition)\nConnected to devnbugs@gmail.com\nType 'help' for available commands.", timestamp: new Date()}
+    { role: "system", content: "Local Terminal Bridge Active\nConnected to host: Windows 11\nType 'gemini auth login' to authenticate locally.", timestamp: new Date()}
   ]);
   const [input, setInput] = useState("");
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
@@ -64,7 +68,8 @@ export function Terminal({
   const [tempInput, setTempInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [selectedModel, setSelectedModel] = useState("gemini-3.1-pro-preview");
-  const [isShellMode, setIsShellMode] = useState(false);
+  const [isShellMode, setIsShellMode] = useState(true);
+  const [isAgentMode, setIsAgentMode] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, index: number, isShell: boolean } | null>(null);
@@ -136,7 +141,7 @@ export function Terminal({
     }
   };
 
-  const executeShellCommand = (cmdStr: string) => {
+  const executeShellCommand = async (cmdStr: string) => {
     if (!cmdStr.trim()) return;
 
     const userCmd: Message = { role: "user", content: cmdStr, timestamp: new Date() };
@@ -150,53 +155,30 @@ export function Terminal({
     
     setIsTyping(true);
 
-    setTimeout(() => {
-      let output = "";
-      const cmd = cmdStr.trim().toLowerCase();
+    try {
+      const response = await fetch('/api/terminal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: cmdStr })
+      });
       
-      switch (cmd) {
-        case "help":
-        case "gemini --help":
-          output = `Available Commands:
-  gemini       Access the Gemini CLI interface
-  mcp          Manage Model Context Protocol servers
-  login        Re-authenticate via web browser or ADC
-  config       Edit system-defaults.json
-  sandbox      Start or stop local filesystem Docker sandbox
-  clear        Clear the terminal output
-  help         Show this message`;
-          break;
-        case "login":
-        case "gemini auth login":
-          output = `Found cached Gemini CLI token...
-Successfully authenticated using cached token.
-Logged in as devnbugs@gmail.com`;
-          break;
-        case "gemini":
-          output = `Gemini CLI Interactive Mode
-Type your prompt or enter 'ctrl+d' to exit.
-Use 'gemini --help' for flag options like --model, --project.`;
-          break;
-        case "clear":
-          setShellMessages([{ role: "system", content: "Terminal cleared.", timestamp: new Date()}]);
-          setIsTyping(false);
-          return;
-        default:
-          if (cmd.startsWith("echo ")) {
-            output = cmdStr.trim().substring(5).replace(/^['"]|['"]$/g, '');
-            break;
-          }
-          output = `command not found: ${cmdStr.split(' ')[0]}
-Type 'help' for a list of valid commands.`;
-      }
+      const data = await response.json();
+      const output = data.stdout || data.stderr || data.error || "Command completed with no output.";
 
       setShellMessages(prev => [...prev, {
         role: "model",
         content: output,
         timestamp: new Date()
       }]);
+    } catch (error: any) {
+      setShellMessages(prev => [...prev, {
+        role: "model",
+        content: `Terminal Error: ${error.message}`,
+        timestamp: new Date()
+      }]);
+    } finally {
       setIsTyping(false);
-    }, 600);
+    }
   };
 
   const executeChatCommand = async (cmdStr: string) => {
@@ -215,13 +197,28 @@ Type 'help' for a list of valid commands.`;
     
     try {
       const { streamChat } = await import('../../services/gemini');
-      const chatTarget = [...messages, userMessage].filter(m => m.role !== 'system') as import('../../services/gemini').Message[];
+      let chatTarget = [...messages, userMessage].filter(m => m.role !== 'system') as import('../../services/gemini').Message[];
+      
+      // Inject Agent System Instruction if in Agent Mode
+      if (isAgentMode) {
+        const planModeText = isPlanMode ? "\n\nCRITICAL: You are in PLAN MODE. You must only suggest changes and explain your reasoning. DO NOT execute any shell commands or modifying tools directly. Provide a clear plan for the user to review." : "";
+        chatTarget = [
+          { 
+            role: "system", 
+            content: "You are an autonomous Gemini Agent. You are capable of performing complex multi-step tasks, analyzing local files, and executing shell commands through the Gemini CLI. Always think step-by-step and use tools when necessary. Your personality is professional, precise, and highly capable." + planModeText,
+            timestamp: new Date()
+          } as any,
+          ...chatTarget
+        ];
+      }
+
       const responseStream = streamChat(chatTarget, selectedModel);
       
       setMessages(prev => [...prev, {
         role: "model",
         content: "",
-        timestamp: new Date()
+        timestamp: new Date(),
+        isAgent: isAgentMode
       }]);
 
       for await (const chunk of responseStream) {
@@ -351,12 +348,17 @@ Type 'help' for a list of valid commands.`;
                 onContextMenu={(e) => handleContextMenu(e, i, false)}
               >
                 <div className={cn(
-                  "w-8 h-8 rounded-full shrink-0 flex items-center justify-center border shadow-sm",
+                  "w-8 h-8 rounded-full shrink-0 flex items-center justify-center border shadow-sm relative",
                   msg.role === "model" 
-                    ? "bg-card border-border text-indigo-400 font-mono text-xs" 
+                    ? (msg.isAgent ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400" : "bg-card border-border text-indigo-400") 
                     : "bg-muted border-border text-foreground"
                 )}>
                   {msg.role === "model" ? <Bot className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                  {msg.isAgent && (
+                    <div className="absolute -top-1 -right-1 bg-indigo-500 text-white rounded-full p-0.5 border border-background">
+                      <Zap className="w-2 h-2 fill-white" />
+                    </div>
+                  )}
                 </div>
                 
                 <div className={cn(
@@ -474,6 +476,21 @@ Type 'help' for a list of valid commands.`;
                 <div className="flex gap-2">
                   <Button type="button" variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isShellMode ? "text-zinc-500 hover:text-zinc-300 hover:bg-white/5" : "text-muted-foreground hover:text-foreground hover:bg-muted")} title="Shortcuts">
                      <Command className="w-4 h-4" />
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    onClick={() => setIsAgentMode(!isAgentMode)}
+                    className={cn(
+                      "h-8 flex items-center gap-2 px-3 rounded-full transition-all text-xs font-medium",
+                      isAgentMode 
+                        ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_10px_rgba(99,102,241,0.2)]" 
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent"
+                    )}
+                    title={isAgentMode ? "Disable Agent Mode" : "Enable Agent Mode"}
+                  >
+                     <Zap className={cn("w-3.5 h-3.5", isAgentMode ? "fill-indigo-400" : "")} />
+                     Agent Mode
                   </Button>
                 </div>
                 <Button 

@@ -16,8 +16,21 @@ import {
   Zap,
   RefreshCcw,
   Monitor,
-  Webhook
+  Webhook,
+  Sparkles,
+  Blocks,
+  Bot
 } from "lucide-react";
+import { 
+  MixerHorizontalIcon, 
+  CubeIcon, 
+  DesktopIcon, 
+  ActivityLogIcon, 
+  GearIcon,
+  GlobeIcon,
+  PlusIcon,
+  ClipboardIcon
+} from "@radix-ui/react-icons";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -35,12 +48,22 @@ const THEMES: Record<ThemeName, { name: string; bg: string; border: string; prom
   onedark: { name: 'One Dark', bg: 'bg-[#282c34]', border: 'border-[#abb2bf]/20', prompt: 'text-[#98c379]', input: 'text-[#abb2bf]', output: 'text-[#5c6370]', borderTop: 'border-[#abb2bf]/20' }
 };
 
-export function AgentView({ onExecuteCommand }: { onExecuteCommand?: (cmd: string) => void }) {
+export function AgentView({ onExecuteCommand, isPlanMode, setIsPlanMode }: { 
+  onExecuteCommand?: (cmd: string) => void,
+  isPlanMode?: boolean,
+  setIsPlanMode?: (val: boolean) => void 
+}) {
   const [consoleTheme, setConsoleTheme] = useState<ThemeName>(() => {
     const saved = localStorage.getItem('agent_console_theme') as ThemeName;
     return (saved && THEMES[saved]) ? saved : 'default';
   });
   const [health, setHealth] = useState({ cpu: 12, ram: 45, disk: '3.2TB', temp: 42 });
+  const [runtimeStatus, setRuntimeStatus] = useState({
+    cli: 'v24.1.0',
+    auth: 'Authorized',
+    mcp: 'Connected',
+    model: 'Gemini 3.1 Pro'
+  });
   
   useEffect(() => {
     localStorage.setItem('agent_console_theme', consoleTheme);
@@ -59,10 +82,10 @@ export function AgentView({ onExecuteCommand }: { onExecuteCommand?: (cmd: strin
   }, []);
 
   const [toggles, setToggles] = useState({
-    network: true,
-    firewall: true,
+    network: false,
+    firewall: false,
     daemon: false,
-    mcp: true
+    mcp: false
   });
 
   const [selectedTool, setSelectedTool] = useState<any>(null);
@@ -80,6 +103,20 @@ export function AgentView({ onExecuteCommand }: { onExecuteCommand?: (cmd: strin
        mcp: { url: 'http://localhost:5000/mcp', args: '' }
     };
   });
+
+  const [skills, setSkills] = useState([
+    { id: 'copilotx-agent', name: 'Autonomous Agent', description: 'Self-correcting AI that performs multi-step reasoning.', enabled: false },
+    { id: 'code-review', name: 'Code Reviewer', description: 'Deep analysis of PRs and code quality.', enabled: false },
+    { id: 'security-audit', name: 'Security Auditor', description: 'Scans for vulnerabilities and secrets.', enabled: false },
+    { id: 'sys-admin', name: 'System Admin', description: 'Advanced OS level troubleshooting.', enabled: false },
+    { id: 'doc-gen', name: 'Docs Generator', description: 'Auto-generates README and JSDocs.', enabled: false }
+  ]);
+
+  const [tasks, setTasks] = useState([
+    { id: 1, title: 'Migrate to Radix UI', status: 'completed', subtasks: 4 },
+    { id: 2, title: 'Implement Gemini CLI Auth', status: 'in-progress', subtasks: 2 },
+    { id: 3, title: 'Add Task Tracker Component', status: 'pending', subtasks: 5 }
+  ]);
 
   useEffect(() => {
     localStorage.setItem('agent_tool_config', JSON.stringify(toolConfig));
@@ -160,6 +197,55 @@ export function AgentView({ onExecuteCommand }: { onExecuteCommand?: (cmd: strin
 
       <div className="flex-1 overflow-y-auto min-h-0 p-4 custom-scrollbar">
         <div className="space-y-4">
+          
+          {/* System Identity */}
+          <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-3 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Agent Identity</span>
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
+                <Bot className="w-6 h-6 text-indigo-400" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-foreground">Gemini Orchestrator</span>
+                <span className="text-[10px] text-muted-foreground font-mono">ID: AI-NODE-24H2-X</span>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-1">
+               <Badge className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 text-[8px] py-0">CLI MODE</Badge>
+               <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[8px] py-0">STABLE</Badge>
+            </div>
+          </div>
+
+          {/* Plan Mode Toggle */}
+          <div className="flex items-center justify-between p-3 bg-indigo-500/5 border border-indigo-500/20 rounded-lg group hover:border-indigo-500/40 transition-all shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center border transition-all",
+                isPlanMode ? "bg-indigo-500 border-indigo-400 text-white shadow-[0_0_10px_rgba(99,102,241,0.4)]" : "bg-indigo-500/10 border-indigo-500/20 text-indigo-400"
+              )}>
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[11px] font-bold text-foreground">Plan Mode</span>
+                <span className="text-[9px] text-muted-foreground leading-tight">Review agent actions before they execute.</span>
+              </div>
+            </div>
+            <button 
+              onClick={() => setIsPlanMode?.(!isPlanMode)}
+              className={cn(
+                "w-9 h-5 rounded-full transition-all relative",
+                isPlanMode ? "bg-indigo-500" : "bg-muted"
+              )}
+            >
+              <div className={cn(
+                "absolute top-1 w-3 h-3 rounded-full bg-white transition-all shadow-md",
+                isPlanMode ? "right-1" : "left-1"
+              )} />
+            </button>
+          </div>
 
           {/* Interactive Console */}
           <div className="space-y-2">
@@ -233,16 +319,16 @@ export function AgentView({ onExecuteCommand }: { onExecuteCommand?: (cmd: strin
           <div className="bg-background border border-border rounded-lg p-4 flex flex-col gap-4">
             <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center justify-between">
               <div className="flex items-center gap-2">
-                 <Webhook className="w-3 h-3 text-purple-400" /> Model Context Protocol
+                 <GlobeIcon className="w-3 h-3 text-purple-400" /> Model Context Protocol
               </div>
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             </h3>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { id: 'fs', label: 'Local FS', icon: HardDrive, state: true },
-                { id: 'bash', label: 'PowerShell', icon: TerminalSquare, state: true },
-                { id: 'telemetry', label: 'Win EventLog', icon: Activity, state: true },
-                { id: 'mcp', label: 'MCP Service', icon: Webhook, state: toggles.mcp, setter: (v:any) => setToggles(p => ({...p, mcp: v})) }
+                { id: 'fs', label: 'Local FS', icon: CubeIcon, state: true },
+                { id: 'bash', label: 'PowerShell', icon: ActivityLogIcon, state: true },
+                { id: 'telemetry', label: 'Win EventLog', icon: DesktopIcon, state: true },
+                { id: 'mcp', label: 'MCP Service', icon: GlobeIcon, state: toggles.mcp, setter: (v:any) => setToggles(p => ({...p, mcp: v})) }
               ].map((item) => (
                 <button
                   key={item.label}
@@ -282,6 +368,89 @@ export function AgentView({ onExecuteCommand }: { onExecuteCommand?: (cmd: strin
             </div>
           </div>
 
+          {/* Agent Skills */}
+          <div className="bg-background border border-border rounded-lg p-4 space-y-4">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-3 h-3 text-amber-400" /> Agent Skills
+              </div>
+              <Badge variant="outline" className="text-[8px] h-4 px-1.5 border-amber-500/30 text-amber-500">BETA</Badge>
+            </h3>
+            
+            <div className="space-y-2">
+              {skills.map((skill) => (
+                <div key={skill.id} className="flex items-center justify-between p-2 rounded-md bg-card border border-border hover:border-amber-500/20 transition-all group">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
+                      {skill.name}
+                      {skill.enabled && <div className="w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_5px_rgba(251,191,36,0.5)]" />}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground leading-tight">{skill.description}</span>
+                  </div>
+                  <button 
+                    onClick={() => setSkills(skills.map(s => s.id === skill.id ? { ...s, enabled: !s.enabled } : s))}
+                    className={cn(
+                      "p-1 rounded-md transition-colors",
+                      skill.enabled ? "text-amber-400 bg-amber-400/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                  >
+                    <Blocks className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            
+            <Button variant="outline" className="w-full h-8 text-[10px] font-bold uppercase tracking-widest border-dashed border-border hover:border-amber-500/50 hover:bg-amber-500/5 transition-all">
+              <PlusIcon className="w-3 h-3 mr-2" /> Load Custom Skill
+            </Button>
+          </div>
+
+          {/* AI Runtime Health */}
+          <div className="bg-background border border-border rounded-lg p-4 space-y-4">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Zap className="w-3 h-3 text-amber-400" /> AI Runtime Health
+              </div>
+              <Badge variant="outline" className="text-[8px] h-4 bg-amber-500/10 border-amber-500/20 text-amber-400">STABLE</Badge>
+            </h3>
+            
+            <div className="space-y-3">
+              {[
+                { label: 'Gemini CLI', value: runtimeStatus.cli, icon: TerminalSquare, status: 'ok' },
+                { label: 'Auth Method', value: (localStorage.getItem('GEMINI_AUTH_METHOD') || 'cli').toUpperCase(), icon: Lock, status: 'ok' },
+                { label: 'MCP Bridge', value: runtimeStatus.mcp, icon: Webhook, status: 'ok' },
+                { label: 'Primary Model', value: runtimeStatus.model, icon: Sparkles, status: 'ok' }
+              ].map((item) => (
+                <div key={item.label} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <item.icon className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-[11px] font-medium text-foreground">{item.label}</span>
+                  </div>
+                  <span className="text-[11px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded text-[10px]">{item.value}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => onExecuteCommand?.('gemini doctor')}
+                className="h-8 text-[10px] font-bold uppercase tracking-widest hover:bg-amber-500/5 transition-all"
+              >
+                Run Doctor
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => onExecuteCommand?.('gemini auth status')}
+                className="h-8 text-[10px] font-bold uppercase tracking-widest hover:bg-amber-500/5 transition-all"
+              >
+                Check Auth
+              </Button>
+            </div>
+          </div>
+
           {/* System Health */}
           <div className="bg-background border border-border rounded-lg p-4 space-y-4">
             <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
@@ -318,6 +487,39 @@ export function AgentView({ onExecuteCommand }: { onExecuteCommand?: (cmd: strin
           </div>
 
           {/* System Events */}
+          <div className="bg-background border border-border rounded-lg p-4 mb-4">
+            <div className="flex items-center justify-between mb-4">
+               <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                 <ClipboardIcon className="w-3 h-3 text-emerald-400" /> Active Tasks
+               </h3>
+               <Badge variant="outline" className="text-[9px] h-4 bg-muted/50 border-emerald-500/20 text-emerald-400 px-1.5">
+                 {tasks.filter(t => t.status === 'in-progress').length} Running
+               </Badge>
+            </div>
+            
+            <div className="space-y-3">
+              {tasks.map((task) => (
+                <div key={task.id} className="space-y-1.5">
+                   <div className="flex items-center justify-between">
+                     <span className="text-[11px] font-medium text-foreground">{task.title}</span>
+                     <span className="text-[9px] text-muted-foreground">{task.status === 'completed' ? 'Done' : `${task.subtasks} subtasks`}</span>
+                   </div>
+                   <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
+                      <div className={cn(
+                        "h-full transition-all duration-1000",
+                        task.status === 'completed' ? "bg-emerald-500 w-full" : 
+                        task.status === 'in-progress' ? "bg-indigo-500 w-1/2" : "bg-muted-foreground/20 w-0"
+                      )} />
+                   </div>
+                </div>
+              ))}
+            </div>
+            
+            <Button variant="outline" className="w-full h-8 mt-4 text-[10px] font-bold uppercase tracking-widest border-dashed border-border hover:bg-muted/50 transition-all">
+               View Task Graph
+            </Button>
+          </div>
+
           <div className="bg-background border border-border rounded-lg p-4">
             <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
               <ShieldCheck className="w-3 h-3 text-blue-400" /> OS Event Logs

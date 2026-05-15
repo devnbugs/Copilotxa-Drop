@@ -81,6 +81,96 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                  <div>
                     <h3 className="text-lg font-bold border-b border-border pb-3 mb-5 text-foreground">Global Settings</h3>
                     <div className="space-y-6">
+                       {/* Authentication Strategy */}
+                       <div className="space-y-3 pb-6 border-b border-border/50">
+                         <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest">Authentication Method</label>
+                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                           {[
+                             { id: 'cli', label: 'Google Account', desc: 'Use local CLI login' },
+                             { id: 'apikey', label: 'API Key', desc: 'Use AI Studio key' },
+                             { id: 'vertex', label: 'Vertex AI', desc: 'Use GCP ADC auth' }
+                           ].map((method) => (
+                             <button
+                               key={method.id}
+                               onClick={() => {
+                                 localStorage.setItem('GEMINI_AUTH_METHOD', method.id);
+                                 window.location.reload();
+                               }}
+                               className={cn(
+                                 "flex flex-col items-start p-3 rounded-lg border text-left transition-all group",
+                                 (localStorage.getItem('GEMINI_AUTH_METHOD') || 'cli') === method.id
+                                   ? "border-indigo-500 bg-indigo-500/10"
+                                   : "border-border bg-card hover:border-muted-foreground/30"
+                               )}
+                             >
+                               <span className={cn(
+                                 "text-xs font-bold uppercase tracking-wide",
+                                 (localStorage.getItem('GEMINI_AUTH_METHOD') || 'cli') === method.id ? "text-indigo-400" : "text-foreground"
+                               )}>{method.label}</span>
+                               <span className="text-[10px] text-muted-foreground mt-1 leading-tight">{method.desc}</span>
+                             </button>
+                           ))}
+                         </div>
+                       </div>
+
+                       {/* API Key Input (Conditional) */}
+                       {(localStorage.getItem('GEMINI_AUTH_METHOD') === 'apikey' || !localStorage.getItem('GEMINI_AUTH_METHOD')) && (
+                         <div className="space-y-2 pb-6 border-b border-border/50 animate-in fade-in duration-300">
+                           <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest">Gemini API Key</label>
+                           <div className="flex gap-2">
+                             <input 
+                               type="password"
+                               defaultValue={localStorage.getItem('GEMINI_API_KEY') || ''}
+                               onChange={(e) => localStorage.setItem('GEMINI_API_KEY', e.target.value)}
+                               placeholder="Enter your API key..."
+                               className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-mono"
+                             />
+                             <button 
+                               onClick={() => window.location.reload()}
+                               className="px-3 py-2 bg-indigo-500/10 text-indigo-400 text-xs font-bold rounded-md border border-indigo-500/20 hover:bg-indigo-500/20 transition-all"
+                             >
+                               Apply
+                             </button>
+                           </div>
+                           <p className="text-[10px] text-muted-foreground leading-tight">
+                             Required for "API Key" method. Get yours at <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-indigo-400 hover:underline">AI Studio</a>.
+                           </p>
+                         </div>
+                       )}
+
+                       {/* Vertex AI Config (Conditional) */}
+                       {localStorage.getItem('GEMINI_AUTH_METHOD') === 'vertex' && (
+                         <div className="space-y-4 pb-6 border-b border-border/50 animate-in fade-in duration-300">
+                           <div>
+                             <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Google Cloud Config</label>
+                             <div className="grid gap-3">
+                               <input 
+                                 type="text"
+                                 placeholder="GCP Project ID"
+                                 defaultValue={localStorage.getItem('GCP_PROJECT_ID') || ''}
+                                 onChange={(e) => localStorage.setItem('GCP_PROJECT_ID', e.target.value)}
+                                 className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                               />
+                               <input 
+                                 type="text"
+                                 placeholder="GCP Location (e.g. us-central1)"
+                                 defaultValue={localStorage.getItem('GCP_LOCATION') || 'us-central1'}
+                                 onChange={(e) => localStorage.setItem('GCP_LOCATION', e.target.value)}
+                                 className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                               />
+                             </div>
+                           </div>
+                           <p className="text-[10px] text-muted-foreground leading-tight italic">
+                             Ensure you have run <code className="bg-muted px-1 text-[9px]">gcloud auth application-default login</code> locally.
+                           </p>
+                           <button 
+                             onClick={() => window.location.reload()}
+                             className="w-full py-2 bg-indigo-500/10 text-indigo-400 text-xs font-bold rounded-md border border-indigo-500/20 hover:bg-indigo-500/20 transition-all"
+                           >
+                             Apply Vertex Config
+                           </button>
+                         </div>
+                       )}
                        <div className="flex items-center justify-between">
                          <div>
                             <div className="font-medium text-foreground text-sm">Theme Interpolation</div>
