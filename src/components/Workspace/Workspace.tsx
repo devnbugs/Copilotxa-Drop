@@ -2,6 +2,7 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import { Terminal } from "@/components/Copilot/Terminal";
 import { AgentView } from "@/components/Copilot/AgentView";
+import { DeviceInfo } from "@/components/Copilot/DeviceInfo";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { 
@@ -56,6 +57,7 @@ export function Workspace() {
   const [chatSessionId, setChatSessionId] = useState(0);
   const [pendingCommand, setPendingCommand] = useState<string | null>(null);
   const [isPlanMode, setIsPlanMode] = useState(false);
+  const [activeView, setActiveView] = useState<'terminal' | 'system'>('terminal');
 
 
   // Open sidebar automatically on larger screens
@@ -196,10 +198,16 @@ export function Workspace() {
                     {/* Agent Button with Sub-functions */}
                     <div className="space-y-1 mb-6">
                       <button 
-                        onClick={() => setPendingCommand("gemini --help")}
-                        className="flex items-center gap-3 w-full text-foreground hover:bg-primary/10 hover:text-primary py-2.5 px-3 rounded-lg transition-all border border-transparent group"
+                        onClick={() => {
+                          setActiveView('terminal');
+                          setPendingCommand("gemini --help");
+                        }}
+                        className={cn(
+                          "flex items-center gap-3 w-full py-2.5 px-3 rounded-lg transition-all border border-transparent group",
+                          activeView === 'terminal' ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+                        )}
                       >
-                        <RocketIcon className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
+                        <RocketIcon className={cn("w-4 h-4", activeView === 'terminal' ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
                         <span className="text-sm font-semibold">Agent</span>
                       </button>
                       <div className="pl-9 space-y-1 border-l border-border ml-5 mt-1">
@@ -241,11 +249,14 @@ export function Workspace() {
                     </button>
 
                     <button 
-                      onClick={() => setPendingCommand("gemini analyze .")}
-                      className="flex items-center gap-3 w-full text-foreground hover:bg-muted py-2.5 px-3 rounded-lg transition-all border border-transparent group"
+                      onClick={() => setActiveView('system')}
+                      className={cn(
+                        "flex items-center gap-3 w-full py-2.5 px-3 rounded-lg transition-all border border-transparent group",
+                        activeView === 'system' ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+                      )}
                     >
-                      <PieChartIcon className="w-4 h-4 text-muted-foreground group-hover:text-foreground" />
-                      <span className="text-sm font-medium">Analysis</span>
+                      <PieChartIcon className={cn("w-4 h-4", activeView === 'system' ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+                      <span className="text-sm font-medium">Analysis & System</span>
                     </button>
                   </div>
                 </div>
@@ -261,12 +272,16 @@ export function Workspace() {
 
           {/* Center Main Chat Area */}
           <main className="flex-1 flex flex-col bg-background relative max-w-full min-w-0 h-full">
-            <Terminal 
-               key={chatSessionId} 
-               externalCommand={pendingCommand}
-               onExternalCommandExecuted={() => setPendingCommand(null)}
-               isPlanMode={isPlanMode}
-            />
+            {activeView === 'terminal' ? (
+              <Terminal 
+                 key={chatSessionId} 
+                 externalCommand={pendingCommand}
+                 onExternalCommandExecuted={() => setPendingCommand(null)}
+                 isPlanMode={isPlanMode}
+              />
+            ) : (
+              <DeviceInfo />
+            )}
           </main>
 
           {/* Right Sidebar - Windows 11 Agent / Context */}

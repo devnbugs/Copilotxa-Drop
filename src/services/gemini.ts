@@ -64,11 +64,13 @@ class GeminiOrchestrator {
       const sanitizedPrompt = prompt
         .replace(/\\/g, '\\\\')
         .replace(/"/g, '\\"')
-        .replace(/\n/g, ' ') // Replace newlines with spaces for single-command execution
+        .replace(/\n/g, ' ') 
         .replace(/\r/g, '');
 
       try {
-        const response = await fetch('/api/terminal', {
+        const isNode = typeof window === 'undefined';
+        const baseUrl = isNode ? 'http://localhost:3002' : '';
+        const response = await fetch(`${baseUrl}/api/terminal`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -76,18 +78,30 @@ class GeminiOrchestrator {
             env: extraEnv
           })
         });
-        const data = await response.json();
+        const text = await response.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          throw new Error(`Invalid server response: ${text.substring(0, 50)}... (Status: ${response.status})`);
+        }
         if (data.stdout) {
           yield data.stdout;
           return;
         }
         throw new Error(data.stderr || data.error || "CLI prompt failed.");
       } catch (e: any) {
-        throw new Error(`Gemini CLI Fallback Failed: ${e.message}. Ensure 'gemini' CLI is installed and you have run 'gemini auth login'.`);
+        throw new Error(`Gemini CLI Fallback Failed: ${e.message}. Ensure the dev server is running and you have authenticated with 'gemini auth login'.`);
       }
     }
 
-    if (!this.genAI) throw new Error("Gemini AI Client not initialized. Please check your API Key settings.");
+    if (!apiKey) {
+       throw new Error("Gemini API Key is missing. Please configure it in settings or use CLI authentication mode.");
+    }
+
+    if (!this.genAI) {
+       this.genAI = new GoogleGenAI({ apiKey });
+    }
 
     try {
       // Map model names if needed

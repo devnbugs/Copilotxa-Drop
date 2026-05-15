@@ -162,7 +162,14 @@ export function Terminal({
         body: JSON.stringify({ command: cmdStr })
       });
       
-      const data = await response.json();
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Invalid server response: ${text.substring(0, 100)}${text.length > 100 ? '...' : ''} (Status: ${response.status})`);
+      }
+
       const output = data.stdout || data.stderr || data.error || "Command completed with no output.";
 
       setShellMessages(prev => [...prev, {

@@ -31,26 +31,58 @@ export default defineConfig(({ mode }) => {
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
       configureServer(server) {
+        // Log all requests to help debug 404s
+        server.middlewares.use((req, res, next) => {
+          if (req.url?.includes('/api/')) {
+            console.log(`[API Proxy] ${req.method} ${req.url}`);
+          }
+          next();
+        });
+
         server.middlewares.use(async (req, res, next) => {
-          if (req.url === '/api/terminal' && req.method === 'POST') {
+          if (!req.url) return next();
+          
+          const url = new URL(req.url, `http://${req.headers.host}`);
+          const path = url.pathname.replace(/\/$/, ''); // Normalize path
+          
+          const sendJson = (data: any, status = 200) => {
+            res.statusCode = status;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(data));
+          };
+
+          // --- SYSTEM INFO ---
+          if (path.endsWith('/api/system-info') && req.method === 'GET') {
+            try {
+              const si = await import('systeminformation');
+              const [cpu, mem, os, disk, battery, gpu] = await Promise.all([
+                si.cpu(), si.mem(), si.osInfo(), si.fsSize(), si.battery(), si.graphics()
+              ]);
+              return sendJson({ cpu, memory: { total: mem.total, free: mem.free, used: mem.used }, os, storage: disk, battery, graphics: gpu });
+            } catch (err: any) {
+              return sendJson({ error: err.message }, 500);
+            }
+          }
+
+          // --- TERMINAL ---
+          if (path.endsWith('/api/terminal') && req.method === 'POST') {
             let body = '';
             req.on('data', chunk => { body += chunk; });
             req.on('end', async () => {
               try {
-                const { command, env: extraEnv } = JSON.parse(body);
-                const { exec } = await import('child_process');
-                const { promisify } = await import('util');
-                const execAsync = promisify(exec);
+                const { command, env: extraEnv } = JSON.parse(body || '{}');
+                if (!command) return sendJson({ error: "No command provided" }, 400);
                 
-                // Merge system env with extra env
-                const mergedEnv = { ...process.env, ...extraEnv };
-                
-                const { stdout, stderr } = await execAsync(command, { env: mergedEnv });
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ stdout, stderr }));
-              } catch (error: any) {
-                res.statusCode = 500;
-                res.end(JSON.stringify({ error: error.message, stderr: error.stderr }));
+                const { spawn } = await import('child_process');
+                const child = spawn(command, { env: { ...process.env, ...extraEnv }, shell: true, timeout: 120000 });
+
+                let stdout = '', stderr = '';
+                child.stdout.on('data', d => stdout += d);
+                child.stderr.on('data', d => stderr += d);
+                child.on('close', code => sendJson({ stdout, stderr, code }));
+                child.on('error', err => sendJson({ stdout, stderr, error: err.message }, 500));
+              } catch (e: any) {
+                sendJson({ error: "Invalid JSON or Server Error" }, 400);
               }
             });
             return;
